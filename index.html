@@ -9,8 +9,10 @@
 <meta name="description" content="Teste tes réflexes comme un pilote de F1 ! Classement mondial en temps réel.">
 <title>F1 Reaction Time</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-:root{--bg:#0a0a0a;--surface:#121212;--surface2:#181818;--border:#222;--red:#e10600;--green:#00e044;--yellow:#ffd700;--white:#f0f0f0;--muted:#777;--dim:#444}
+:root{--bg:#0a0a0a;--surface:#121212;--border:#222;--red:#e10600;--green:#00e044;--yellow:#ffd700;--white:#f0f0f0;--muted:#777;--dim:#444}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overscroll-behavior:none;touch-action:manipulation}
 body{background:var(--bg);color:var(--white);font-family:'Barlow Condensed',sans-serif;overflow-x:hidden;user-select:none;-webkit-user-select:none}
@@ -34,14 +36,13 @@ input::placeholder{color:#555}
 .home-tagline{font-size:1.1rem;color:#999;letter-spacing:3px;line-height:1.6;margin-bottom:40px;animation:fadeUp .8s ease .4s both}
 .home-tagline strong{color:#fff;font-weight:700}
 .home-buttons{display:flex;flex-direction:column;gap:12px;animation:fadeUp .8s ease .6s both}
-.btn-play{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;padding:18px 40px;background:var(--red);color:#fff;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 30px rgba(225,6,0,.3);transition:transform .15s}
+.btn-play{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;padding:18px 40px;background:var(--red);color:#fff;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 30px rgba(225,6,0,.3)}
 .btn-play:active{transform:scale(.97)}
 .btn-secondary{font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:600;letter-spacing:3px;text-transform:uppercase;padding:14px 40px;background:transparent;color:#888;border:1px solid #333;border-radius:12px;cursor:pointer}
 .home-stats{margin-top:50px;display:flex;gap:30px;justify-content:center;animation:fadeUp .8s ease .8s both}
 .home-stat-val{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700}
 .home-stat-label{font-size:.6rem;color:#555;letter-spacing:2px;margin-top:4px}
 .sound-toggle{position:fixed;top:16px;right:16px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.2rem}
-.sound-toggle:active{transform:scale(.9)}
 #game{max-width:500px;margin:0 auto;width:100%;padding:0 16px}
 .game-nav{display:flex;justify-content:space-between;align-items:center;padding:16px 0;flex-shrink:0}
 .nav-btn{background:none;border:none;color:#666;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:2px;cursor:pointer}
@@ -80,6 +81,7 @@ input::placeholder{color:#555}
 #leaderboard{max-width:500px;margin:0 auto;width:100%;padding:0 16px}
 .lb-title{font-family:'Orbitron',monospace;font-weight:900;font-size:1.6rem;letter-spacing:3px}
 .lb-sub{font-size:.8rem;color:#555;letter-spacing:3px;margin-top:6px}
+.lb-loading{text-align:center;padding:60px 0;color:#555;letter-spacing:3px}
 .lb-empty{text-align:center;padding:60px 20px;color:#555}
 .lb-entry{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface);border:1px solid #1e1e1e;border-radius:12px;position:relative;overflow:hidden}
 .lb-entry.top{background:#141010;border-color:rgba(225,6,0,.25)}
@@ -90,12 +92,14 @@ input::placeholder{color:#555}
 .lb-time-unit{font-size:.6em;color:#555;margin-left:2px}
 .flash{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .08s;z-index:100}
 .flash.show{opacity:1}.flash.red-flash{background:rgba(225,6,0,.15)}.flash.green-flash{background:rgba(0,224,68,.12)}
+.online-count{font-size:.7rem;color:var(--green);letter-spacing:2px;margin-top:8px;animation:fadeUp .8s ease 1s both}
 </style>
 </head>
 <body>
 <div class="flash" id="flash"></div>
 <div class="sound-toggle" id="soundToggle" onclick="toggleSound()">🔊</div>
 
+<!-- HOME -->
 <div class="page active" id="home">
   <div class="home-grid"></div><div class="home-glow"></div>
   <div class="home-content">
@@ -110,16 +114,18 @@ input::placeholder{color:#555}
     <p class="home-tagline">TESTE TES RÉFLEXES COMME UN<br><strong>PILOTE DE FORMULE 1</strong></p>
     <div class="home-buttons">
       <button class="btn-play" onclick="goTo('game')">▶ JOUER</button>
-      <button class="btn-secondary" onclick="goTo('leaderboard')">🏆 CLASSEMENT</button>
+      <button class="btn-secondary" onclick="goTo('leaderboard')">🏆 CLASSEMENT MONDIAL</button>
     </div>
     <div class="home-stats">
       <div style="text-align:center"><div class="home-stat-val">~200ms</div><div class="home-stat-label">PILOTE F1</div></div>
       <div style="text-align:center"><div class="home-stat-val">~270ms</div><div class="home-stat-label">HUMAIN MOYEN</div></div>
       <div style="text-align:center"><div class="home-stat-val" style="color:var(--red)">???ms</div><div class="home-stat-label">ET TOI ?</div></div>
     </div>
+    <div class="online-count" id="playerCount"></div>
   </div>
 </div>
 
+<!-- GAME -->
 <div class="page" id="game">
   <div class="game-nav">
     <button class="nav-btn" onclick="goTo('home')">← RETOUR</button>
@@ -145,88 +151,74 @@ input::placeholder{color:#555}
   </div>
 </div>
 
+<!-- LEADERBOARD -->
 <div class="page" id="leaderboard">
   <div class="game-nav">
     <button class="nav-btn" onclick="goTo('home')">← ACCUEIL</button>
     <button class="nav-btn-red" onclick="goTo('game')">▶ JOUER</button>
   </div>
   <div style="text-align:center;margin-bottom:30px">
-    <div class="lb-title">🏆 CLASSEMENT</div>
-    <div class="lb-sub">LES MEILLEURS RÉFLEXES</div>
+    <div class="lb-title">🏆 CLASSEMENT MONDIAL</div>
+    <div class="lb-sub">EN TEMPS RÉEL</div>
   </div>
-  <div id="lbList"></div>
+  <div id="lbList"><div class="lb-loading">CHARGEMENT...</div></div>
 </div>
 
 <script>
-// ═══ SOUND ENGINE ═══
+// ═══ FIREBASE ═══
+firebase.initializeApp({
+  apiKey:"AIzaSyAEl0PlqhGUHBCHC3ivNcPiQ3tz2obGxHQ",
+  authDomain:"f1-reaction.firebaseapp.com",
+  databaseURL:"https://f1-reaction-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"f1-reaction",
+  storageBucket:"f1-reaction.firebasestorage.app",
+  messagingSenderId:"622479499419",
+  appId:"1:622479499419:web:5792ab61cd2b5f42efa63e"
+});
+const db = firebase.database();
+const lbRef = db.ref('leaderboard');
+
+// Listen to leaderboard in real-time
+let lbData = [];
+lbRef.orderByChild('time').limitToFirst(50).on('value', snap => {
+  lbData = [];
+  snap.forEach(child => { lbData.push(child.val()); });
+  if(document.getElementById('leaderboard').classList.contains('active')) renderLB();
+  // Update player count on home
+  const countEl = document.getElementById('playerCount');
+  if(countEl && snap.numChildren() > 0) countEl.textContent = '🏁 ' + snap.numChildren() + ' JOUEURS DANS LE CLASSEMENT';
+});
+
+function submitToFirebase(name, time) {
+  const sanitized = name.replace(/[<>"'/\\]/g,'').trim().slice(0,15);
+  if(!sanitized || time < 1 || time > 2000) return Promise.reject('invalid');
+  return lbRef.push({
+    name: sanitized,
+    time: Math.round(time),
+    date: new Date().toISOString().slice(0,10)
+  });
+}
+
+// ═══ SOUNDS ═══
 let audioCtx=null,soundOn=true;
 function getAC(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext);if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}
 function toggleSound(){soundOn=!soundOn;document.getElementById('soundToggle').textContent=soundOn?'🔊':'🔇'}
-
-function playLightBeep(i){
-  if(!soundOn)return;const c=getAC(),t=c.currentTime;
-  const o=c.createOscillator(),g=c.createGain();
-  o.type='square';o.frequency.value=820+i*15;
-  g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.01,t+.15);
-  o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+.15);
-  const o2=c.createOscillator(),g2=c.createGain();
-  o2.type='sine';o2.frequency.value=1200;
-  g2.gain.setValueAtTime(.08,t);g2.gain.exponentialRampToValueAtTime(.001,t+.05);
-  o2.connect(g2);g2.connect(c.destination);o2.start(t);o2.stop(t+.05);
-}
-
-function playLightsOut(){
-  if(!soundOn)return;const c=getAC(),t=c.currentTime;
-  const o=c.createOscillator(),g=c.createGain();
-  o.type='sawtooth';o.frequency.setValueAtTime(600,t);o.frequency.exponentialRampToValueAtTime(80,t+.25);
-  g.gain.setValueAtTime(.15,t);g.gain.exponentialRampToValueAtTime(.001,t+.3);
-  o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+.3);
-  const bs=c.sampleRate*.1,buf=c.createBuffer(1,bs,c.sampleRate),d=buf.getChannelData(0);
-  for(let i=0;i<bs;i++)d[i]=(Math.random()*2-1)*.3;
-  const n=c.createBufferSource(),ng=c.createGain();n.buffer=buf;
-  ng.gain.setValueAtTime(.12,t);ng.gain.exponentialRampToValueAtTime(.001,t+.1);
-  n.connect(ng);ng.connect(c.destination);n.start(t);n.stop(t+.1);
-}
-
-function playResult(cls){
-  if(!soundOn)return;const c=getAC(),t=c.currentTime;
-  if(cls==='fast'){
-    [523,659,784].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,t+i*.08);g.gain.linearRampToValueAtTime(.12,t+i*.08+.03);g.gain.exponentialRampToValueAtTime(.001,t+i*.08+.4);o.connect(g);g.connect(c.destination);o.start(t+i*.08);o.stop(t+i*.08+.4)});
-  }else if(cls==='medium'){
-    [440,520].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(.1,t+i*.12);g.gain.exponentialRampToValueAtTime(.001,t+i*.12+.2);o.connect(g);g.connect(c.destination);o.start(t+i*.12);o.stop(t+i*.12+.2)});
-  }else{
-    const o=c.createOscillator(),g=c.createGain();o.type='sawtooth';o.frequency.value=150;g.gain.setValueAtTime(.1,t);g.gain.exponentialRampToValueAtTime(.001,t+.3);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+.3);
-  }
-}
-
-function playFalseStart(){
-  if(!soundOn)return;const c=getAC(),t=c.currentTime;
-  const o=c.createOscillator(),g=c.createGain();o.type='square';o.frequency.value=120;
-  g.gain.setValueAtTime(.2,t);g.gain.setValueAtTime(.2,t+.1);g.gain.setValueAtTime(0,t+.12);g.gain.setValueAtTime(.2,t+.18);g.gain.exponentialRampToValueAtTime(.001,t+.4);
-  o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+.4);
-  const o2=c.createOscillator(),g2=c.createGain();o2.type='square';o2.frequency.value=280;
-  g2.gain.setValueAtTime(.08,t);g2.gain.exponentialRampToValueAtTime(.001,t+.35);
-  o2.connect(g2);g2.connect(c.destination);o2.start(t);o2.stop(t+.35);
-}
-
+function playLightBeep(i){if(!soundOn)return;const c=getAC(),t=c.currentTime;const o=c.createOscillator(),g=c.createGain();o.type='square';o.frequency.value=820+i*15;g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.01,t+.15);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+.15);const o2=c.createOscillator(),g2=c.createGain();o2.type='sine';o2.frequency.value=1200;g2.gain.setValueAtTime(.08,t);g2.gain.exponentialRampToValueAtTime(.001,t+.05);o2.connect(g2);g2.connect(c.destination);o2.start(t);o2.stop(t+.05)}
+function playLightsOut(){if(!soundOn)return;const c=getAC(),t=c.currentTime;const o=c.createOscillator(),g=c.createGain();o.type='sawtooth';o.frequency.setValueAtTime(600,t);o.frequency.exponentialRampToValueAtTime(80,t+.25);g.gain.setValueAtTime(.15,t);g.gain.exponentialRampToValueAtTime(.001,t+.3);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+.3);const bs=c.sampleRate*.1,buf=c.createBuffer(1,bs,c.sampleRate),d=buf.getChannelData(0);for(let i=0;i<bs;i++)d[i]=(Math.random()*2-1)*.3;const n=c.createBufferSource(),ng=c.createGain();n.buffer=buf;ng.gain.setValueAtTime(.12,t);ng.gain.exponentialRampToValueAtTime(.001,t+.1);n.connect(ng);ng.connect(c.destination);n.start(t);n.stop(t+.1)}
+function playResult(cls){if(!soundOn)return;const c=getAC(),t=c.currentTime;if(cls==='fast'){[523,659,784].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,t+i*.08);g.gain.linearRampToValueAtTime(.12,t+i*.08+.03);g.gain.exponentialRampToValueAtTime(.001,t+i*.08+.4);o.connect(g);g.connect(c.destination);o.start(t+i*.08);o.stop(t+i*.08+.4)})}else if(cls==='medium'){[440,520].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(.1,t+i*.12);g.gain.exponentialRampToValueAtTime(.001,t+i*.12+.2);o.connect(g);g.connect(c.destination);o.start(t+i*.12);o.stop(t+i*.12+.2)})}else{const o=c.createOscillator(),g=c.createGain();o.type='sawtooth';o.frequency.value=150;g.gain.setValueAtTime(.1,t);g.gain.exponentialRampToValueAtTime(.001,t+.3);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+.3)}}
+function playFalseStart(){if(!soundOn)return;const c=getAC(),t=c.currentTime;const o=c.createOscillator(),g=c.createGain();o.type='square';o.frequency.value=120;g.gain.setValueAtTime(.2,t);g.gain.setValueAtTime(0,t+.12);g.gain.setValueAtTime(.2,t+.18);g.gain.exponentialRampToValueAtTime(.001,t+.4);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+.4)}
 let engNode=null,engGain=null;
-function startEngine(){
-  if(!soundOn)return;try{const c=getAC();if(engNode)return;
-  engNode=c.createOscillator();engGain=c.createGain();const f=c.createBiquadFilter();
-  engNode.type='sawtooth';engNode.frequency.value=85;f.type='lowpass';f.frequency.value=200;engGain.gain.value=.02;
-  engNode.connect(f);f.connect(engGain);engGain.connect(c.destination);engNode.start()}catch(e){}}
+function startEngine(){if(!soundOn)return;try{const c=getAC();if(engNode)return;engNode=c.createOscillator();engGain=c.createGain();const f=c.createBiquadFilter();engNode.type='sawtooth';engNode.frequency.value=85;f.type='lowpass';f.frequency.value=200;engGain.gain.value=.02;engNode.connect(f);f.connect(engGain);engGain.connect(c.destination);engNode.start()}catch(e){}}
 function stopEngine(){try{if(engGain&&audioCtx){engGain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.3);setTimeout(()=>{try{engNode.stop()}catch(e){}engNode=null;engGain=null},400)}}catch(e){engNode=null;engGain=null}}
-function revEngine(){if(!soundOn||!engNode||!engGain||!audioCtx)return;try{const t=audioCtx.currentTime;engNode.frequency.setValueAtTime(85,t);engNode.frequency.linearRampToValueAtTime(300,t+.15);engNode.frequency.linearRampToValueAtTime(150,t+.5);engNode.frequency.linearRampToValueAtTime(85,t+1);engGain.gain.setValueAtTime(.02,t);engGain.gain.linearRampToValueAtTime(.06,t+.15);engGain.gain.linearRampToValueAtTime(.02,t+1)}catch(e){}}
+function revEngine(){if(!soundOn||!engNode||!engGain||!audioCtx)return;try{const t=audioCtx.currentTime;engNode.frequency.setValueAtTime(85,t);engNode.frequency.linearRampToValueAtTime(300,t+.15);engNode.frequency.linearRampToValueAtTime(85,t+1);engGain.gain.setValueAtTime(.02,t);engGain.gain.linearRampToValueAtTime(.06,t+.15);engGain.gain.linearRampToValueAtTime(.02,t+1)}catch(e){}}
 
 // ═══ NAV ═══
 function goTo(p){killTimers();stopEngine();document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(p).classList.add('active');if(p==='leaderboard')renderLB();if(p==='game'){resetUI();startEngine()}window.scrollTo(0,0)}
 
 // ═══ LEADERBOARD ═══
-function getBoard(){try{return JSON.parse(localStorage.getItem('f1board')||'[]')}catch{return[]}}
-function addScore(n,t){const b=getBoard();b.push({name:n.slice(0,15),time:t,date:new Date().toISOString().slice(0,10)});b.sort((a,c)=>a.time-c.time);const top=b.slice(0,50);localStorage.setItem('f1board',JSON.stringify(top));return top}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function renderLB(){
-  const b=getBoard(),el=document.getElementById('lbList');
+  const b=lbData,el=document.getElementById('lbList');
   if(!b.length){el.innerHTML='<div class="lb-empty"><div style="font-size:2.5rem;margin-bottom:16px">🏁</div><div style="font-family:Orbitron,monospace;font-size:1rem;letter-spacing:2px;margin-bottom:8px">AUCUN SCORE</div><div style="font-size:.85rem;color:#444;letter-spacing:2px">Sois le premier à jouer !</div></div>';return}
   const mx=Math.max(...b.map(x=>x.time),500),m=['🥇','🥈','🥉'];
   el.innerHTML='<div style="display:flex;flex-direction:column;gap:6px;padding-bottom:40px">'+b.map((e,i)=>{
@@ -286,11 +278,30 @@ function showResult(ms){
   const diff=t-200,comp=diff<=0?Math.abs(diff)+'ms plus rapide qu\'un pilote F1 !':diff+'ms de plus qu\'un pilote F1 (≈200ms)';
   const cv=cls==='fast'?'var(--green)':cls==='medium'?'var(--yellow)':'var(--red)';
   const z=document.getElementById('zone');z.className='zone';
-  z.innerHTML=`<div class="timer-big ${cls}">${t}<span class="timer-unit">MS</span></div><div class="rating" style="color:${cv}">${r}</div><div class="comparison">${comp}</div><div class="submit-row" onclick="event.stopPropagation()"><input class="submit-input" type="text" placeholder="Ton pseudo" maxlength="15" id="nameInput" onkeydown="if(event.key==='Enter')submitScore()"><button class="submit-btn" onclick="submitScore()">ENVOYER</button></div><div class="zone-sub" style="margin-top:8px">appuie pour réessayer</div>`;
+  // Get saved name
+  const savedName = localStorage.getItem('f1name') || '';
+  z.innerHTML=`<div class="timer-big ${cls}">${t}<span class="timer-unit">MS</span></div><div class="rating" style="color:${cv}">${r}</div><div class="comparison">${comp}</div><div class="submit-row" onclick="event.stopPropagation()"><input class="submit-input" type="text" placeholder="Ton pseudo" maxlength="15" id="nameInput" value="${esc(savedName)}" onkeydown="if(event.key==='Enter')submitScore()"><button class="submit-btn" onclick="submitScore()">ENVOYER</button></div><div class="zone-sub" style="margin-top:8px">appuie pour réessayer</div>`;
   addDot(cls);updateStats();setTimeout(clearL,300);vib(cls==='fast'?[50,30,50]:40);
 }
 
-function submitScore(){const inp=document.getElementById('nameInput');if(!inp||!inp.value.trim())return;const lr=results[results.length-1];if(!lr)return;addScore(inp.value.trim(),lr);const row=document.querySelector('.submit-row');if(row)row.outerHTML='<div class="submitted-msg">✓ SCORE ENREGISTRÉ !</div>'}
+function submitScore(){
+  const inp=document.getElementById('nameInput');
+  if(!inp||!inp.value.trim())return;
+  const name=inp.value.trim();
+  const lr=results[results.length-1];
+  if(!lr)return;
+  // Save name for next time
+  localStorage.setItem('f1name', name);
+  // Submit to Firebase
+  submitToFirebase(name, lr).then(()=>{
+    const row=document.querySelector('.submit-row');
+    if(row)row.outerHTML='<div class="submitted-msg">✓ SCORE ENREGISTRÉ DANS LE CLASSEMENT MONDIAL !</div>';
+  }).catch(()=>{
+    const row=document.querySelector('.submit-row');
+    if(row)row.outerHTML='<div class="submitted-msg" style="color:var(--red)">✗ ERREUR — RÉESSAIE</div>';
+  });
+}
+
 function addDot(c){const d=document.createElement('div');d.className='dot '+c;document.getElementById('history').appendChild(d)}
 function updateStats(){const b=Math.min(...results),a=Math.round(results.reduce((x,y)=>x+y,0)/results.length);document.getElementById('sBest').textContent=b+'ms';document.getElementById('sAvg').textContent=a+'ms';document.getElementById('sCount').textContent=results.length}
 
